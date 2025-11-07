@@ -1,72 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Earth Globe - Interactive</title>
+    <title>كرة الأرضية التفاعلية</title>
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Arial', sans-serif;
             overflow: hidden;
-            background: #000;
+            background: radial-gradient(circle at center, #0a0e2a, #000000);
+            cursor: grab;
         }
-        #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            z-index: 100;
+        body:active {
+            cursor: grabbing;
+        }
+        canvas {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div id="info">
-        🌍 3D Earth Globe<br>
-        🖱️ Drag to rotate<br>
-        🔍 Scroll to zoom
-    </div>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Setup scene, camera, and renderer
+        // إعداد المشهد والكاميرا والمصير
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
-        
-        camera.position.z = 2.5;
-        
-        // Add lights
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-        
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 3, 5);
-        scene.add(directionalLight);
-        
-        // Create Earth
-        const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
-        const earthMaterial = new THREE.MeshPhongMaterial({
-            color: 0x2233ff,
-            emissive: 0x112244,
-            shininess: 10
-        });
-        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-        scene.add(earth);
-        
-        // Create stars
+
+        // إضافة ضوء خلفية (نجوم)
         const starsGeometry = new THREE.BufferGeometry();
-        const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
         const starsVertices = [];
         for (let i = 0; i < 10000; i++) {
             const x = (Math.random() - 0.5) * 2000;
@@ -75,50 +41,151 @@
             starsVertices.push(x, y, z);
         }
         starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+        const starsMaterial = new THREE.PointsMaterial({ color: 0xFFFFFF, size: 1 });
         const stars = new THREE.Points(starsGeometry, starsMaterial);
         scene.add(stars);
+
+        // إنشاء كرة الأرض
+        const earthGeometry = new THREE.SphereGeometry(5, 64, 64); // نصف قطر 5، دقة عالية
         
-        // Mouse interaction
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
+        // إنشاء نسيج (Texture) للأرض بشكل برمجي
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
         
-        renderer.domElement.addEventListener('mousedown', () => isDragging = true);
-        renderer.domElement.addEventListener('mouseup', () => isDragging = false);
-        renderer.domElement.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                const deltaMove = {
-                    x: e.offsetX - previousMousePosition.x,
-                    y: e.offsetY - previousMousePosition.y
-                };
-                earth.rotation.y += deltaMove.x * 0.01;
-                earth.rotation.x += deltaMove.y * 0.01;
-            }
-            previousMousePosition = { x: e.offsetX, y: e.offsetY };
+        // رسم المحيطات
+        ctx.fillStyle = '#1e3a8a';
+        ctx.fillRect(0, 0, 1024, 512);
+        
+        // رسم القارات بشكل مبسط
+        ctx.fillStyle = '#22c55e';
+        // أمريكا الشمالية
+        ctx.beginPath();
+        ctx.ellipse(200, 150, 80, 60, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // أمريكا الجنوبية
+        ctx.beginPath();
+        ctx.ellipse(250, 350, 40, 80, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // أفريقيا
+        ctx.beginPath();
+        ctx.ellipse(550, 280, 50, 90, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // أوروبا وآسيا
+        ctx.beginPath();
+        ctx.ellipse(600, 150, 120, 60, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // أستراليا
+        ctx.beginPath();
+        ctx.ellipse(800, 380, 60, 30, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        const earthTexture = new THREE.CanvasTexture(canvas);
+        const earthMaterial = new THREE.MeshPhongMaterial({
+            map: earthTexture,
+            bumpScale: 0.05,
+            specular: new THREE.Color('grey'),
+            shininess: 10
         });
         
-        // Zoom with mouse wheel
-        renderer.domElement.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            camera.position.z += e.deltaY * 0.001;
-            camera.position.z = Math.max(1.5, Math.min(10, camera.position.z));
-        });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // إضافة الإضاءة
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
         
-        // Animation loop
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 3, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // position camera
+        camera.position.z = 15;
+
+        // متغيرات التحكم بالماوس
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let targetRotationX = 0, targetRotationY = 0;
+        let rotationVelocityX = 0, rotationVelocityY = 0;
+
+        // حدث الضغط على الماوس
+        document.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            rotationVelocityX = 0;
+            rotationVelocityY = 0;
+        });
+
+        // حدث تحريك الماوس
+        document.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
+            
+            const deltaX = e.clientX - mouseX;
+            const deltaY = e.clientY - mouseY;
+            
+            rotationVelocityY = deltaX * 0.01; // دوران حول المحور Y
+            rotationVelocityX = deltaY * 0.01; // دوران حول المحور X
+            
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        // حدث رفع الضغط عن الماوس
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        // حدث عجلة التمرير (Zoom)
+        document.addEventListener('wheel', (e) => {
+            camera.position.z += e.deltaY * 0.01;
+            camera.position.z = Math.max(10, Math.min(30, camera.position.z));
+        });
+
+        // منع القائمة السياقية
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // دالة التحديث
         function animate() {
             requestAnimationFrame(animate);
-            if (!isDragging) {
-                earth.rotation.y += 0.001;
+
+            // تطبيق الدوران
+            if (!isMouseDown) {
+                // تباطؤ تدريجي عند الإفلات
+                rotationVelocityX *= 0.95;
+                rotationVelocityY *= 0.95;
             }
+            
+            targetRotationX += rotationVelocityX;
+            targetRotationY += rotationVelocityY;
+            
+            // تحديد زاوية الدوران حول X لمنع الانقلاب
+            targetRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetRotationX));
+            
+            earth.rotation.x = targetRotationX;
+            earth.rotation.y = targetRotationY;
+
+            // تأثير خفيف للنجوم
+            stars.rotation.y += 0.0002;
+
             renderer.render(scene, camera);
         }
-        animate();
-        
-        // Handle window resize
+
+        // معالجة تغيير حجم النافذة
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // بدء الحلقة الرئيسية
+        animate();
     </script>
 </body>
 </html>
